@@ -61,12 +61,12 @@ JSON:"""
         pass
     
     return {
-        "safe_to_navigate": True,
-        "confidence_score": 0.85,
-        "is_emergency": False,
-        "clinical_reasoning": "Passed standard clinical scope check.",
-        "escalation_message": ""
-    }
+    "safe_to_navigate": False,
+    "confidence_score": 0.0,
+    "is_emergency": True,
+    "clinical_reasoning": "Safety evaluation was unavailable.",
+    "escalation_message": "Unable to complete a safety evaluation. If this may be an emergency, seek immediate medical care."
+}
 
 # ====================================================================
 # AGENT 4: LLM-GROUNDED DEPARTMENT AGENT (Grounded in RAG)
