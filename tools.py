@@ -1,5 +1,10 @@
 import requests
 import math
+import requests
+import math
+
+from maps.hospital_finder import find_nearby_hospitals
+
 
 def query_live_hospitals_osm(lat: float = 8.5241, lon: float = 76.8833, radius_meters: int = 8000) -> list:
     """Dynamically queries OpenStreetMap with a robust fallback to real local facilities."""
