@@ -1,6 +1,9 @@
 from rag_engine import populate_knowledge_base
-from agents import agent_guideline_safety, agent_department_recommendation
-from tools import query_live_hospitals_osm
+from agents import (
+    agent_guideline_safety,
+    agent_department_recommendation,
+    agent_hospital_navigation,
+)
 
 def main():
     print("=== INITIALIZING VECTOR RAG DATABASE ===")
@@ -35,8 +38,8 @@ def main():
         print(f" -> Grounded Vector Evidence: {dept_eval.get('retrieved_evidence')}")
         
         # 3. Dynamic Tool Call: Live Map Facilities
-        print("\n[*] AGENT 5 (Hospital Search) Calling Live OpenStreetMap API...")
-        live_facilities = query_live_hospitals_osm()
+        print("\n[*] AGENT 5 (Hospital Search) Calling Member 3 Maps module...")
+        live_facilities = agent_hospital_navigation()["hospitals"]
         print(f" -> Discovered {len(live_facilities)} Real Physical Healthcare Facilities:")
         for fac in live_facilities:
             print(f"    • {fac['name']} ({fac['distance_km']} km away)")
