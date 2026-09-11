@@ -2,6 +2,7 @@ import json
 import re
 from google import genai
 from rag_engine import semantic_rag_search
+from maps.hospital_finder import find_nearby_hospitals
 
 # ====================================================================
 # API CONFIGURATION (Using modern google-genai client)
@@ -109,4 +110,19 @@ JSON:"""
         "retrieved_evidence": retrieved_chunks[0]["text"],
         "department_rationale": "Directly grounded in closest semantic vector match.",
         "rag_chunks": retrieved_chunks
+    }
+
+def agent_hospital_navigation(
+    user_lat: float | None = None,
+    user_lng: float | None = None,
+) -> dict:
+    """Gets nearby hospitals; defaults to Bengaluru for the demo."""
+    user_lat = user_lat if user_lat is not None else 12.9716
+    user_lng = user_lng if user_lng is not None else 77.5946
+
+    hospitals = find_nearby_hospitals(user_lat, user_lng, limit=3)
+
+    return {
+        "location": {"lat": user_lat, "lng": user_lng},
+        "hospitals": hospitals,
     }
