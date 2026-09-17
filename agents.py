@@ -124,13 +124,25 @@ def agent_hospital_navigation(
     user_lat: float | None = None,
     user_lng: float | None = None,
 ) -> dict:
-    """Gets nearby hospitals; defaults to Bengaluru for the demo."""
+    """Gets nearby hospitals and strictly sorts them by closest distance."""
+    
+    # Fallback coordinates if browser GPS is blocked
     user_lat = user_lat if user_lat is not None else 12.9716
     user_lng = user_lng if user_lng is not None else 77.5946
 
-    hospitals = find_nearby_hospitals(user_lat, user_lng, limit=3)
+    # Fetch a slightly larger batch to ensure we can sort the absolute closest ones
+    raw_hospitals = find_nearby_hospitals(user_lat, user_lng, limit=10)
+
+    if raw_hospitals and isinstance(raw_hospitals, list):
+        # Strictly sort the list by distance (closest first)
+        raw_hospitals.sort(key=lambda x: x.get('distance_km', 999))
+        
+        # Keep only the top 3 closest hospitals
+        closest_hospitals = raw_hospitals[:3]
+    else:
+        closest_hospitals = []
 
     return {
         "location": {"lat": user_lat, "lng": user_lng},
-        "hospitals": hospitals,
+        "hospitals": closest_hospitals,
     }
