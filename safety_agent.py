@@ -1,29 +1,19 @@
 def evaluate_safety_and_scope(user_query: str) -> dict:
-    prompt = f"""You are a strict Clinical Safety and Scope Agent. 
-    Evaluate the user query: "{user_query}"
+    prompt = f"""You are SperAI, an intelligent healthcare navigation assistant. 
+    Evaluate the following user query: "{user_query}"
 
-    RULE 1 (OUT OF SCOPE): If the query is a greeting (e.g., "hello"), a general question (e.g., "what is your name?"), or anything NOT related to a medical symptom, you MUST set "safe": false and "is_emergency": false.
-    RULE 2 (EMERGENCY): If the query describes severe/life-threatening symptoms (e.g., chest pain, heavy bleeding, stroke signs, severe breathing issues), you MUST set "safe": false and "is_emergency": true.
-    RULE 3 (SAFE): ONLY if it is a non-emergency, medical symptom (e.g., mild fever, sore throat), set "safe": true and "is_emergency": false.
+    RULE 1 (GENERAL CHAT): If the query is a basic greeting ("hello") or a general non-medical question ("what is your name?", "how are you?"), act as a friendly AI. Answer the question politely in the "message" field. Set "is_general_query": true, "safe": false (to prevent hospital mapping), and "is_emergency": false.
+    RULE 2 (EMERGENCY): If the query describes a life-threatening medical emergency (e.g., chest pain, heavy bleeding), set "safe": false, "is_emergency": true, and "is_general_query": false.
+    RULE 3 (MEDICAL ROUTING): If it is a safe, non-emergency medical symptom (e.g., fever, rash, sore throat), set "safe": true, "is_emergency": false, and "is_general_query": false.
 
-    Respond STRICTLY in JSON format:
+    Respond STRICTLY in valid JSON format:
     {{
         "safe": true or false,
         "confidence_score": 0.0 to 1.0,
         "is_emergency": true or false,
+        "is_general_query": true or false,
         "clinical_reasoning": "Brief explanation of your decision",
-        "message": "If out of scope, say 'I am a healthcare AI and can only process medical queries.' If emergency, say 'Call emergency services immediately.'"
+        "message": "Your friendly conversational answer, OR emergency instructions, OR empty if safe medical routing."
     }}"""
 
-    response = query_llm(prompt) # (Use your existing LLM call here)
-    
-    import json, re
-    try:
-        json_match = re.search(r"\{.*\}", response, re.DOTALL)
-        if json_match:
-            return json.loads(json_match.group(0))
-    except Exception:
-        pass
-        
-    # Failsafe
-    return {"safe": False, "confidence_score": 0.0, "is_emergency": False, "message": "Could not verify safety."}
+    # ... (Keep your existing LLM execution code below this prompt) ...
