@@ -1,16 +1,24 @@
 import streamlit as st
 import time
-from orchestrator import compiled_graph
+from streamlit_geolocation import streamlit_geolocation
 
-# 1. Page Configuration (Wide Layout)
-st.set_page_config(
-    page_title="Nexus | AI Healthcare Navigator", 
-    page_icon="⚕️", 
-    layout="wide",
-    initial_sidebar_state="collapsed"
+# Cleaned up imports
+from agents import (
+    agent_department_recommendation,
+    agent_hospital_navigation,
 )
+from safety_agent import evaluate_safety_and_scope
+from rag_engine import collection, populate_knowledge_base
 
-# 2. Custom CSS for a Premium Look
+# Initialize Knowledge Base
+if collection.count() == 0:
+    populate_knowledge_base()
+
+# -----------------------------
+# 1. Page Configuration & CSS
+# -----------------------------
+st.set_page_config(page_title="SperAI | Navigation", page_icon="⚕️", layout="wide", initial_sidebar_state="collapsed")
+
 st.markdown("""
 <style>
     .main-title {
@@ -23,12 +31,6 @@ st.markdown("""
         padding-bottom: 0px;
         margin-bottom: 0px;
     }
-    .sub-title {
-        text-align: center;
-        color: #888;
-        font-size: 1.2em;
-        margin-bottom: 40px;
-    }
     div[data-testid="metric-container"] {
         background-color: #1e1e1e;
         border: 1px solid #333;
@@ -39,112 +41,108 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 3. Header Section
-st.markdown('<h1 class="main-title">⚕️ AI Health Navigator</h1>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">Autonomous Multi-Agent Triage, RAG Routing, & Live Facility Mapping</p>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-title">⚕️ SperAI</h1>', unsafe_allow_html=True)
+st.markdown('<p style="text-align: center; color: #888; font-size: 1.2em; margin-bottom: 30px;">AI-Powered Healthcare Navigation</p>', unsafe_allow_html=True)
 
-# 4. User Input Area
+# -----------------------------
+# 2. User Input Container
+# -----------------------------
 with st.container(border=True):
+    st.subheader("🩺 Describe Your Concern")
     user_query = st.text_area(
-        "Describe your symptoms or medical concern in detail:",
-        placeholder="e.g., I fell down the stairs, and now I have severe swelling and sharp pain in my right wrist...",
+        "What are you experiencing?",
+        placeholder="Example: I have a sharp pain in my lower right abdomen and a slight fever...",
         height=100
     )
 
-    analyze_button = st.button("🚀 Run Multi-Agent Analysis", type="primary", use_container_width=True)
+    st.subheader("📍 Your Location")
+    st.write("Click the button below to automatically detect your current location.")
+    
+    # Auto-Geolocation Component
+    location = streamlit_geolocation()
+    
+    # Set default or detected coordinates
+    default_lat = location.get('latitude') if location and location.get('latitude') else 12.9716
+    default_lon = location.get('longitude') if location and location.get('longitude') else 77.5946
 
-# 5. Execution Logic & Dynamic UI
+    col1, col2 = st.columns(2)
+    with col1:
+        latitude = st.number_input("Latitude", value=float(default_lat), format="%.4f")
+    with col2:
+        longitude = st.number_input("Longitude", value=float(default_lon), format="%.4f")
+
+    analyze_button = st.button("🚀 Run SperAI Navigation", type="primary", use_container_width=True)
+
+# -----------------------------
+# 3. Agent Execution & Dynamic UI
+# -----------------------------
 if analyze_button:
     if not user_query.strip():
-        st.warning("⚠️ Please enter your symptoms to proceed.")
-    else:
-        # DYNAMIC LOADER: Shows the agents working step-by-step
-        with st.status("🤖 Multi-Agent System Initializing...", expanded=True) as status:
-            try:
-                st.write("🛡️ Agent 1: Running clinical safety protocols...")
-                time.sleep(0.5) 
-                
-                st.write("🧠 Agent 2: Querying medical RAG vector database...")
-                time.sleep(0.5)
-                
-                st.write("🗺️ Agent 3: Locating real-world healthcare facilities...")
-                
-                # Execute Backend Orchestrator
-                initial_state = {
-                    "user_query": user_query,
-                    "safety_result": {},
-                    "department_result": {},
-                    "hospitals": [],
-                    "final_output": ""
-                }
-                
-                result = compiled_graph.invoke(initial_state)
-                safety = result.get("safety_result", {})
-                score = safety.get('confidence_score', 0.0)
-                is_safe = safety.get("safe_to_navigate", True) and score >= 0.70
-                
-                status.update(label="✅ Agentic Analysis Complete!", state="complete", expanded=False)
-                
-                st.markdown("---")
-                
-                # 6. Result Dashboard (Dual Column Layout)
-                col1, col2 = st.columns([1, 1], gap="large")
-                
-                # LEFT COLUMN: Safety & Triage
-                with col1:
-                    st.subheader("🛡️ Safety & Triage Assessment")
-                    
-                    c1, c2 = st.columns(2)
-                    c1.metric("Safety Confidence", f"{score * 100:.1f}%")
-                    c2.metric("Triage Status", "✅ CLEAR" if is_safe else "🚨 ESCALATED")
-                    
-                    st.info(f"**Clinical Reasoning:**\n{safety.get('clinical_reasoning', 'No reasoning provided.')}")
-                    
-                    if not is_safe:
-                        st.error(f"**🚨 EMERGENCY PROTOCOL ACTIVATED:**\n{safety.get('escalation_message', 'Immediate medical attention required. Please visit the nearest ER.')}")
+        st.warning("⚠️ Please describe your health concern to proceed.")
+        st.stop()
 
-                # RIGHT COLUMN: Department Routing
-                with col2:
-                    if is_safe:
-                        st.subheader("🧠 Recommended Department")
-                        dept = result.get("department_result", {})
-                        dept_name = dept.get('recommended_department', 'General Medicine')
-                        
-                        st.success(f"### 🏥 {dept_name}")
-                        with st.expander("🔍 View AI Rationale & RAG Evidence"):
-                            st.write(f"**Rationale:** {dept.get('department_rationale', 'Based on clinical guidelines.')}")
-                            st.write(f"**Source Evidence:** {dept.get('retrieved_evidence', 'N/A')}")
-                    else:
-                        st.subheader("🧠 Recommended Action")
-                        st.error("### 🚑 EMERGENCY ROOM")
-                        st.write("Standard department routing suspended due to high-risk symptoms.")
+    with st.status("🤖 Multi-Agent System Initializing...", expanded=True) as status:
+        try:
+            # --- SAFETY AGENT ---
+            st.write("🛡️ Agent 1: Checking clinical safety and scope...")
+            time.sleep(0.5) 
+            safety = evaluate_safety_and_scope(user_query)
 
-                st.markdown("---")
-                
-                # 7. Maps & Final Synthesis
-                col3, col4 = st.columns([1, 1], gap="large")
-                
-                with col3:
-                    st.subheader("🗺️ Live Facility Mapping")
-                    if is_safe:
-                        hospitals = result.get("hospitals", [])
-                        if hospitals:
-                            for h in hospitals:
-                                with st.container(border=True):
-                                    st.markdown(f"**🏥 {h.get('name', 'Hospital')}**")
-                                    st.caption(f"📍 Distance: {h.get('distance_km', 0)} km | 🚗 Est. Travel: {h.get('travel_time_min', 'N/A')} mins")
-                        else:
-                            st.warning("No facilities found in the immediate vicinity.")
-                    else:
-                        st.error("Facility mapping disabled. Dispatching emergency protocols.")
-                        
-                with col4:
-                    st.subheader("📝 Final AI Synthesis")
-                    st.info(result.get("final_output", "No synthesis provided."))
-                
-            except Exception as e:
-                # Failsafe to show errors beautifully on screen
-                status.update(label="❌ Orchestration Error", state="error", expanded=True)
-                st.error(f"**Backend Pipeline Error:** {str(e)}")
-                st.caption("Please check your terminal logs or API key configurations.")
-              
+            if not safety.get("safe", False):
+                status.update(label="🚨 Escalated: Safety Protocol Triggered", state="error", expanded=False)
+                st.error("### 🚨 EMERGENCY DETECTED" if safety.get("is_emergency") else "### 🚫 Request Outside Scope")
+                st.info(safety.get("message", "Seek immediate medical attention."))
+                st.stop()
+
+            # --- DEPARTMENT AGENT ---
+            st.write("🧠 Agent 2: Querying medical RAG vector database...")
+            department = agent_department_recommendation(user_query)
+
+            # --- HOSPITAL AGENT ---
+            st.write(f"🗺️ Agent 3: Locating real-world facilities near ({latitude}, {longitude})...")
+            hospitals = agent_hospital_navigation(latitude, longitude)
+
+            status.update(label="✅ Agentic Analysis Complete!", state="complete", expanded=False)
+            st.markdown("---")
+
+            # -----------------------------
+            # 4. Results Dashboard
+            # -----------------------------
+            col_left, col_right = st.columns([1, 1], gap="large")
+
+            with col_left:
+                st.subheader("🛡️ Triage Assessment")
+                st.metric("Safety Confidence", f"{safety.get('confidence_score', 0):.0%}")
+                st.info(f"**Navigation Action:** {'Allowed' if safety.get('safe') else 'Blocked'}")
+
+            with col_right:
+                st.subheader("🧠 Recommended Department")
+                st.success(f"### 🏥 {department.get('recommended_department', 'General')}")
+                with st.expander("🔍 View AI Rationale"):
+                    st.write(department.get('department_rationale', 'N/A'))
+
+            st.markdown("---")
+            
+            # -----------------------------
+            # 5. Facility Directory & Routing
+            # -----------------------------
+            st.subheader("📍 Nearest Hospitals Directory")
+            
+            hospital_list = hospitals.get("hospitals", [])
+            if hospital_list:
+                for i, hospital in enumerate(hospital_list, start=1):
+                    with st.container(border=True):
+                        h_col1, h_col2 = st.columns([3, 1])
+                        with h_col1:
+                            st.markdown(f"**{i}. {hospital.get('name', 'Hospital')}**")
+                            st.write(f"📏 Distance: **{hospital.get('distance_km', 0)} km**")
+                        with h_col2:
+                            # Direct Google Maps Routing Link
+                            route_url = hospital.get("route_url", f"https://www.google.com/maps/dir/?api=1&origin={latitude},{longitude}&destination={hospital.get('lat')},{hospital.get('lon')}")
+                            st.link_button("🗺️ Get Directions", route_url, use_container_width=True)
+            else:
+                st.warning("No hospitals found within the immediate radius.")
+
+        except Exception as e:
+            status.update(label="❌ Orchestration Error", state="error", expanded=True)
+            st.error(f"**Backend Pipeline Error:** {str(e)}")
