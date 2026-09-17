@@ -3,6 +3,9 @@ import re
 from google import genai
 from rag_engine import semantic_rag_search
 from maps.hospital_finder import find_nearby_hospitals
+import urllib.request
+import urllib.parse
+import math
 
 # ====================================================================
 # API CONFIGURATION (Using modern google-genai client)
@@ -120,27 +123,72 @@ JSON:"""
         "rag_chunks": retrieved_chunks
     }
 
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """Calculates true distance between two GPS coordinates in kilometers."""
+    R = 6371.0  # Earth radius in kilometers
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return round(R * c, 2)
+
 def agent_hospital_navigation(
     user_lat: float | None = None,
     user_lng: float | None = None,
 ) -> dict:
-    """Gets nearby hospitals and strictly sorts them by closest distance."""
+    """Dynamically fetches REAL nearby hospitals using the free OpenStreetMap API."""
     
-    # Fallback coordinates if browser GPS is blocked
+    # Fallback to Bengaluru if GPS fails
     user_lat = user_lat if user_lat is not None else 12.9716
     user_lng = user_lng if user_lng is not None else 77.5946
 
-    # Fetch a slightly larger batch to ensure we can sort the absolute closest ones
-    raw_hospitals = find_nearby_hospitals(user_lat, user_lng, limit=10)
-
-    if raw_hospitals and isinstance(raw_hospitals, list):
-        # Strictly sort the list by distance (closest first)
-        raw_hospitals.sort(key=lambda x: x.get('distance_km', 999))
+    # Call OpenStreetMap's Overpass API to find actual hospitals within 15km
+    overpass_query = f"""
+    [out:json];
+    (
+      node["amenity"="hospital"](around:15000,{user_lat},{user_lng});
+      way["amenity"="hospital"](around:15000,{user_lat},{user_lng});
+      relation["amenity"="hospital"](around:15000,{user_lat},{user_lng});
+    );
+    out center top 10;
+    """
+    
+    closest_hospitals = []
+    
+    try:
+        # Fetch real map data directly from the web
+        query_encoded = urllib.parse.quote(overpass_query)
+        url = f"http://overpass-api.de/api/interpreter?data={query_encoded}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'SperAI-App'})
         
-        # Keep only the top 3 closest hospitals
+        with urllib.request.urlopen(req, timeout=8) as response:
+            data = json.loads(response.read().decode())
+            
+        raw_hospitals = []
+        for element in data.get('elements', []):
+            name = element.get('tags', {}).get('name')
+            if not name:
+                continue
+                
+            h_lat = element.get('lat') or element.get('center', {}).get('lat')
+            h_lon = element.get('lon') or element.get('center', {}).get('lon')
+            
+            if h_lat and h_lon:
+                dist = calculate_distance(user_lat, user_lng, h_lat, h_lon)
+                raw_hospitals.append({
+                    "name": name,
+                    "lat": h_lat,
+                    "lon": h_lon,
+                    "distance_km": dist,
+                    "route_url": f"https://www.google.com/maps/dir/?api=1&origin={user_lat},{user_lng}&destination={h_lat},{h_lon}"
+                })
+
+        # Sort by actual closest distance and return top 3
+        raw_hospitals.sort(key=lambda x: x['distance_km'])
         closest_hospitals = raw_hospitals[:3]
-    else:
-        closest_hospitals = []
+
+    except Exception as e:
+        print(f"Map API Error: {e}")
 
     return {
         "location": {"lat": user_lat, "lng": user_lng},
