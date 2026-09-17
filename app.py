@@ -84,17 +84,24 @@ if analyze_button:
             # --- SAFETY AGENT ---
             st.write("🛡️ Agent 1: Checking clinical safety and scope...")
             time.sleep(0.5) 
-            safety = evaluate_safety_and_scope(user_query)
+            raw_safety = evaluate_safety_and_scope(user_query)
+            
+            # Fail-safe dictionary enforcement
+            safety = raw_safety if isinstance(raw_safety, dict) else {
+                "safe": False, 
+                "is_general_query": True, 
+                "message": "Hello! I am SperAI, your healthcare navigation assistant. How can I help you today?"
+            }
 
             if not safety.get("safe", False):
-                # NEW: Handle friendly general chat gracefully
+                # Handle friendly general chat gracefully
                 if safety.get("is_general_query", False):
                     status.update(label="💬 Conversational Request", state="complete", expanded=False)
                     st.success("### 🤖 SperAI")
                     st.write(safety.get("message", "Hello! How can I help with your health today?"))
                     st.stop()
                 
-                # Existing: Handle emergencies and actual out-of-scope violations
+                # Handle emergencies and actual out-of-scope violations
                 else:
                     status.update(label="🚨 Escalated: Safety Protocol Triggered", state="error", expanded=False)
                     st.error("### 🚨 EMERGENCY DETECTED" if safety.get("is_emergency") else "### 🚫 Request Outside Scope")
@@ -144,7 +151,6 @@ if analyze_button:
                             st.markdown(f"**{i}. {hospital.get('name', 'Hospital')}**")
                             st.write(f"📏 Distance: **{hospital.get('distance_km', 0)} km**")
                         with h_col2:
-                            # Direct Google Maps Routing Link
                             route_url = hospital.get("route_url", f"https://www.google.com/maps/dir/?api=1&origin={latitude},{longitude}&destination={hospital.get('lat')},{hospital.get('lon')}")
                             st.link_button("🗺️ Get Directions", route_url, use_container_width=True)
             else:
