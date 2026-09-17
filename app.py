@@ -56,20 +56,18 @@ with st.container(border=True):
     )
 
     st.subheader("📍 Your Location")
-    st.write("Click the button below to automatically detect your current location.")
     
-    # Auto-Geolocation Component
+    # Auto-Geolocation Component (No manual input fields)
     location = streamlit_geolocation()
     
-    # Set default or detected coordinates
-    default_lat = location.get('latitude') if location and location.get('latitude') else 12.9716
-    default_lon = location.get('longitude') if location and location.get('longitude') else 77.5946
+    # Set detected coordinates (or default to Bengaluru if not clicked)
+    latitude = location.get('latitude') if location and location.get('latitude') else 12.9716
+    longitude = location.get('longitude') if location and location.get('longitude') else 77.5946
 
-    col1, col2 = st.columns(2)
-    with col1:
-        latitude = st.number_input("Latitude", value=float(default_lat), format="%.4f")
-    with col2:
-        longitude = st.number_input("Longitude", value=float(default_lon), format="%.4f")
+    if location and location.get('latitude'):
+        st.success("✅ Location detected successfully.")
+    else:
+        st.caption("Click the locator button above to detect your GPS. If not clicked, a default demo location will be used.")
 
     analyze_button = st.button("🚀 Run SperAI Navigation", type="primary", use_container_width=True)
 
@@ -99,7 +97,7 @@ if analyze_button:
             department = agent_department_recommendation(user_query)
 
             # --- HOSPITAL AGENT ---
-            st.write(f"🗺️ Agent 3: Locating real-world facilities near ({latitude}, {longitude})...")
+            st.write("🗺️ Agent 3: Locating real-world facilities near your coordinates...")
             hospitals = agent_hospital_navigation(latitude, longitude)
 
             status.update(label="✅ Agentic Analysis Complete!", state="complete", expanded=False)
