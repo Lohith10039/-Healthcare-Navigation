@@ -1,25 +1,23 @@
 def evaluate_safety_and_scope(user_query: str) -> dict:
     prompt = f"""You are a strict Clinical Safety and Scope Agent. 
-    Evaluate the following user query: "{user_query}"
+    Evaluate the user query: "{user_query}"
 
-    Rules:
-    1. SCOPE CHECK: Is this a health or medical concern? If the user is asking a general question (e.g., "What is your name?", "How are you?"), programming questions, or anything non-medical, you MUST set "safe": false and "is_emergency": false.
-    2. EMERGENCY CHECK: Does this indicate a medical emergency (e.g., severe chest pain, heavy bleeding, unconsciousness, severe breathing difficulty)? If yes, you MUST set "safe": false and "is_emergency": true.
-    3. ROUTINE: Only if it is a safe, non-emergency medical symptom (e.g., mild fever, rash, sore throat) should you set "safe": true.
+    RULE 1 (OUT OF SCOPE): If the query is a greeting (e.g., "hello"), a general question (e.g., "what is your name?"), or anything NOT related to a medical symptom, you MUST set "safe": false and "is_emergency": false.
+    RULE 2 (EMERGENCY): If the query describes severe/life-threatening symptoms (e.g., chest pain, heavy bleeding, stroke signs, severe breathing issues), you MUST set "safe": false and "is_emergency": true.
+    RULE 3 (SAFE): ONLY if it is a non-emergency, medical symptom (e.g., mild fever, sore throat), set "safe": true and "is_emergency": false.
 
-    Respond STRICTLY in valid JSON format:
+    Respond STRICTLY in JSON format:
     {{
         "safe": true or false,
         "confidence_score": 0.0 to 1.0,
         "is_emergency": true or false,
         "clinical_reasoning": "Brief explanation of your decision",
-        "message": "If out of scope, say 'I am a healthcare navigation assistant and can only process medical concerns.' If emergency, say 'Please seek immediate emergency care.'"
+        "message": "If out of scope, say 'I am a healthcare AI and can only process medical queries.' If emergency, say 'Call emergency services immediately.'"
     }}"""
 
-    # ... (Keep your existing LLM execution code here) ...
+    response = query_llm(prompt) # (Use your existing LLM call here)
     
-    # Example of how the rest of your function likely looks:
-    response = query_llm(prompt) # Or client.models.generate_content(...)
+    import json, re
     try:
         json_match = re.search(r"\{.*\}", response, re.DOTALL)
         if json_match:
@@ -27,5 +25,5 @@ def evaluate_safety_and_scope(user_query: str) -> dict:
     except Exception:
         pass
         
-    # Failsafe fallback
-    return {"safe": False, "confidence_score": 0.0, "is_emergency": False, "message": "Failed to evaluate safety. Please try again."}
+    # Failsafe
+    return {"safe": False, "confidence_score": 0.0, "is_emergency": False, "message": "Could not verify safety."}
