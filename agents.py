@@ -143,14 +143,19 @@ def agent_hospital_navigation(
     user_lng = user_lng if user_lng is not None else 77.5946
 
     # Call OpenStreetMap's Overpass API to find actual hospitals within 15km
+   # Expand the radius to 100km (100000 meters) to guarantee we find the nearest facility
+    # Also added the "healthcare"="hospital" tag which is common in some regions
     overpass_query = f"""
     [out:json];
     (
-      node["amenity"="hospital"](around:15000,{user_lat},{user_lng});
-      way["amenity"="hospital"](around:15000,{user_lat},{user_lng});
-      relation["amenity"="hospital"](around:15000,{user_lat},{user_lng});
+      node["amenity"="hospital"](around:100000,{user_lat},{user_lng});
+      way["amenity"="hospital"](around:100000,{user_lat},{user_lng});
+      relation["amenity"="hospital"](around:100000,{user_lat},{user_lng});
+      
+      node["healthcare"="hospital"](around:100000,{user_lat},{user_lng});
+      way["healthcare"="hospital"](around:100000,{user_lat},{user_lng});
     );
-    out center top 10;
+    out center top 15;
     """
     
     closest_hospitals = []
