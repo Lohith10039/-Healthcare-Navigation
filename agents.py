@@ -10,10 +10,18 @@ from maps.hospital_finder import find_nearby_hospitals
 # The client automatically picks up your GEMINI_API_KEY environment variable,
 # or you can pass it directly: client = genai.Client(api_key="YOUR_KEY")
 import os
+import streamlit as st
 from google import genai
 
-# Securely loads the key from your environment variables
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+# Safely resolve the API key for both local and Streamlit Cloud environments
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+    except KeyError:
+        raise ValueError("GEMINI_API_KEY is missing! Please add it to Streamlit Advanced Settings -> Secrets.")
+
+client = genai.Client(api_key=api_key)
 
 def query_llm(prompt: str) -> str:
     """Invokes the cloud LLM using the modern Google GenAI SDK."""
